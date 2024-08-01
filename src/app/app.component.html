@@ -1,0 +1,30 @@
+<div id="full">
+    <div id="sanjana">
+        <nav class="navbar navbar-expand-lg navbar-dark bg-dark-blue sticky-top" style="margin-bottom: 20px;"> 
+            <p class="navbar-brand" id="title">Stock Search</p>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#myNav" aria-controls="myNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="myNav">
+                <ul class="navbar-nav ms-auto">
+                    <li>
+                        <a class="s-nav-link nav-link" routerLink="/search/home" routerLinkActive="active" (click)="setActiveComponent('search')" [class.active]="activeComponent === 'search'">Search</a>
+                    </li>
+                    <li>
+                        <a class="w-nav-link nav-link" routerLink="/watchlist" routerLinkActive="active" (click)="setActiveComponent('watchlist')" [class.active]="activeComponent === 'watchlist'">Watchlist</a>
+                    </li>
+                    <li>
+                        <a class="p-nav-link nav-link" routerLink="/portfolio" routerLinkActive="active" (click)="setActiveComponent('portfolio')" [class.active]="activeComponent === 'portfolio'">Portfolio</a>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <router-outlet></router-outlet>
+    </div>
+
+    <footer class="bg-light" style="padding: 10px; margin: auto; margin-top: 20px;">
+        <p class="font-weight-bold text-center m-auto">Powered by 
+            <a href="https://finnhub.io" target="_blank" style="cursor: pointer;">Finnhub.io</a>
+        </p>
+    </footer>
+</div>

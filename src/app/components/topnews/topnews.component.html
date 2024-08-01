@@ -1,0 +1,22 @@
+<div class="container">
+    <div class="row">
+        <div class="col-12 col-md-6" *ngFor="let info of news_info" (click)="open(info, $event)">
+            <div class="card mt-3" style="cursor: pointer; background-color: rgb(244, 244, 244);">
+                <div class="row p-2">
+                    <div class="col-md-4">
+                        <img [src]="info.image" 
+                            class="img-fluid rounded custom-img" 
+                            alt="Image description" 
+                            style="object-fit: cover; width: 100%; height: 7rem">
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body py-auto">
+                            <p class="card-title text-center align-center truncate-2-lines m-0">{{info.headline}}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

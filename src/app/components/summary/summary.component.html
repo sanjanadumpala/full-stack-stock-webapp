@@ -1,0 +1,40 @@
+<div class="container">
+    <div class="row my-4">
+        <div class="col-sm">
+            <div class="row">
+                <div class="col-lg-6 col-sm-12">
+                    <div class="text-center justify">
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>High Price:</b> {{info.h | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Low Price:</b> {{info.l | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Open Price:</b> {{info.o | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Prev. Close:</b> {{info.pc | number:'1.2-2' }}</p>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-sm-0">
+
+                </div>
+            </div>
+            <div class="row text-center my-5">
+                <div>
+                    <p class="fs-5 font-weight-bold"><u><b>About the company</b></u></p>
+                    <p *ngFor="let info of company_info"><b>IPO Start Date:</b> {{info.ipo}}</p>
+                    <p *ngFor="let info of company_info"><b>Industry:</b> {{info.finnhubIndustry}}</p>
+                    <p *ngFor="let info of company_info"><b>Webpage: </b><a href="{{info.weburl}}" target="_blank">{{info.weburl}}</a></p>
+                    <p><b>Company Peers:</b></p>
+                    <span *ngFor="let name of peer_info; let last = last">
+                        <a class="link-primary" (click)="onSearch(name)" style="cursor: pointer">{{name}}</a><span *ngIf="!last">, </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div>
+                <highcharts-chart 
+                [Highcharts]="Highcharts"
+                [options]="chartOptions"
+                style="width: 100%; height: 400px; display: block;">
+                </highcharts-chart>
+            </div>
+        </div>
+    </div>
+</div> 

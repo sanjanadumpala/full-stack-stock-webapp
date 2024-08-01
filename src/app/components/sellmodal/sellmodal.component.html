@@ -1,0 +1,17 @@
+<div class="modal-header">
+    <h5 class="modal-title" id="exampleModalLabel">{{ticker}}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body text-left">
+    <p>Current Price: {{currentPrice}}</p>
+    <p>Money in Wallet: ${{ogMoneyInWallet}}</p>
+    <div class="form-outline d-flex justify-content-between">
+        <label class="form-label" for="typeNumber">Quantity:</label>
+        <input type="number" id="typeNumber" class="form-control m-1" [(ngModel)]="inputValue" value="0" min="0"/>
+    </div>
+    <p class="text-danger" *ngIf="enoughStocks()">You cannot sell the stocks that you don't have!</p>
+</div>
+<div class="modal-footer d-flex justify-content-between">
+    <p>Total: {{ (this.currentPrice * this.inputValue) | number:'1.2-2' }}</p>
+    <button type="button" class="btn btn-success" data-bs-dismiss="modal" [disabled]="enoughStocks() || !this.inputValue" (click)="removeFromPortfolio()">Sell</button>
+</div>

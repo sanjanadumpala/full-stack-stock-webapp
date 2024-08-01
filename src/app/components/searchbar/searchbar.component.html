@@ -1,0 +1,107 @@
+<div class="container-md" style="padding: 7px;">
+  <p class="fs-1 my-4 text-center ">STOCK SEARCH</p>
+  <!-- search bar -->
+  <div class="container-sm" style="width: 95%; max-width: 550px;">
+    <div class="col-sm mb-3 input-group">
+      <input #searchInput type="text" class="form-control-custom" placeholder="Enter stock ticker symbol" aria-label="Search" aria-describedby="search-button" (keyup.enter)="onSearch(searchQuery.value)" [formControl]="searchQuery">
+      <button class="btn searchbox-btn-custom" type="button" id="search-button" (click)="onSearch(searchQuery.value)">
+        <i class="bi bi-search"></i>
+      </button>
+      <button class="btn searchbox-btn-custom" type="button" id="cross-button" (click)="clearSearch()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+  <!-- loading spinner -->
+  <div class="row" style="max-height: 1000px">
+    <div *ngIf="isContentLoading" class="loading-spinner" style="display: flex; justify-content: center;">
+      <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+  </div>
+  <!-- autocomplete -->
+  <div *ngIf="initialLoading || (suggestions.length && !isLoading)" class="suggestions-dropdown container-sm" style="width: 60%; max-width: 400px; margin-top: -30px; transform: translateX(-2rem);">
+    <div *ngIf="isLoading" class="loading-spinner clearfix">
+      <div class="spinner-border spinner-border-sm" style="color: darkblue" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <div *ngFor="let suggestion of suggestions" (click)="selectSuggestion(suggestion)">
+      {{ suggestion.displaySymbol }} | {{ suggestion.description }}
+    </div>
+  </div>
+  <!-- invalid ticker -->
+  <div class="row mx-1">
+    <div *ngIf="showInvalidAlert" class="alert alert-danger alert-dismissible fade show text-center" role="alert">
+      No data found. Please enter a valid Ticker.
+    </div>
+  </div>
+  <!-- base info -->
+  <div class="container text-center" *ngIf="showBaseInfo" style="padding: 0;">
+    <!-- added to watchlist alert -->
+    <div *ngIf="showAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ticker}} added to Watchlist.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+    </div>
+    <!-- removed from watchlist alert -->
+    <div *ngIf="showRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ticker}} removed from Watchlist.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+    </div>
+    <!-- added to portfolio alert -->
+    <div *ngIf="showPAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ticker}} bought successfully.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+    </div>
+    <!-- removed from portfolio alert -->
+    <div *ngIf="showPRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ticker}} sold successfully.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+    </div>
+    <div class="container">
+      <div class="row g-0" *ngFor="let info of company_info">
+        <div class="col">
+          <!-- company info -->
+          <p class="fs-2">{{info.ticker}} <button class="btn btn-sm" style="cursor: pointer" (click)="ToggleWatchlist(info.ticker)"><i [ngClass]="watchlistStyle$ | async" [ngStyle]="watchlistColor$ | async"></i></button></p>
+          <p class="text-muted" style="font-size: 1.2rem">{{info.name}}</p>
+          <p style="font-size: 0.8rem" *ngFor="let info of company_info">{{info.exchange}}</p>
+          <!-- buy button -->
+          <button type="button" class="btn btn-success btn-custom" (click)="buyModalDeets()">Buy</button>
+          <!-- sell button -->
+          <button *ngIf="canSell$ | async" type="button" class="btn btn-danger btn-custom" (click)="sellModalDeets()">Sell</button>
+        </div>
+        <!-- company logo -->
+        <div class="col-4" *ngFor="let info of company_info">
+          <img class="img-fluid col-6 col-md-3" src={{info.logo}}/>
+        </div>
+        <!-- stock info -->
+        <div class="col">
+          <p class="fs-2" [ngStyle]="{'color': getColorForStock(info)}" *ngFor="let info of stock_info">{{info.c | number:'1.2-2' }}</p>
+          <p style="font-size: 0.9rem" [ngStyle]="{'color': getColorForStock(info)}" *ngFor="let info of stock_info"><i [ngClass]="caretStyle" [ngStyle]="{'color': getColorForStock(info)}"></i> {{info.d | number:'1.2-2' }} ({{info.dp | number:'1.2-2' }}%)</p>
+          <p style="font-size: 0.7rem" *ngFor="let info of stock_info">{{this.newTime}}</p>
+        </div>
+      </div>
+      <!-- market status -->
+      <div class="row">
+        <p [ngStyle]="{'font-size': '0.8rem', 'font-weight': 'bold', 'color': getMarketColor(stockMarketStatus(info.t))}" *ngFor="let info of stock_info">
+          {{stockMarketStatus(info.t)}}
+        </p>
+      </div>
+    </div>
+  </div>
+  <!-- menu -->
+  <div class="container-lg" *ngIf="showBaseInfo">
+    <div class="horizontal-menu d-flex overflow-auto">
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'summary'" (click)="setActiveMenuItem('summary')">Summary</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'topnews'" (click)="setActiveMenuItem('topnews')">Top News</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'charts'" (click)="setActiveMenuItem('charts')">Charts</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'insights'" (click)="setActiveMenuItem('insights')">Insights</a>
+    </div>
+  </div>
+
+  <app-summary *ngIf="activeMenuItem === 'summary' && showBaseInfo" [company_info]="company_info" [stock_info]="stock_info" [peer_info]="peer_info" [graph_info]="graph_info" [queryTicker]="ticker" [onSearch]="onSearch.bind(this)" [graph_info2]="graph_info2" [graphColor]="graphColor"></app-summary>
+  <app-topnews *ngIf="activeMenuItem === 'topnews' && showBaseInfo && ticker.length > 0" [news_info]="news_info"></app-topnews>
+  <app-charts *ngIf="activeMenuItem === 'charts' && showBaseInfo" [graph_info]="graph_info" [queryTicker]="ticker"></app-charts>
+  <app-insights *ngIf="activeMenuItem === 'insights' && showBaseInfo" [trend_info]="trend_info" [sentiment_info]="sentiment_info" [earning_info]="earning_info" [queryTicker]="ticker" [company_info]="company_info"></app-insights>
+</div>

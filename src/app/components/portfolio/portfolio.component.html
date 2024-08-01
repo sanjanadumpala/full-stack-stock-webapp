@@ -1,0 +1,81 @@
+<div class="container mt-5">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <!-- added to portfolio alert -->
+                <div *ngIf="showAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{this.currentPurchase}} bought successfully.
+                    <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+                </div>
+                <!-- removed from portfolio alert -->
+                <div *ngIf="showRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{this.currentPurchase}} sold successfully.
+                    <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+                </div>
+                <h1 class="fs-1">My Portfolio</h1>
+                <!-- loading spinner -->
+                <div *ngIf="isContentLoading" class="loading-spinner  d-flex justify-content-center">
+                    <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div *ngIf="!isContentLoading">
+        <h4> Money in Wallet: ${{this.wallet_info[0].total}}</h4>
+        <!-- empty watchlist alert -->
+        <div *ngIf="!this.hasItems && !isContentLoading" class="alert alert-warning text-center" role="alert">
+            Currently you don't have any stock.
+        </div>
+        <!-- portfolio cards -->
+        <div *ngFor="let info of print_info">
+            <div class="card text-left my-3">
+                <div class="fs-3 card-header" (click)="onClick(info.ticker)" style="cursor: pointer;">
+                    {{info.ticker}}
+                    <span class="fs-5 text-muted">
+                        {{info.name}}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md">
+                            <div class="row">
+                                <div class="col-8">
+                                    <h5 class="card-title">Quantity:</h5>
+                                    <h5 class="card-title">Avg. Cost / Share:</h5>
+                                    <h5 class="card-title">Total Cost:</h5>
+                                </div>
+                                <div class="col-4">
+                                    <h5 class="card-title">{{info.quantity}}</h5>
+                                    <h5 class="card-title">{{info.avgcost | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.totalcost}}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="row">
+                                <div class="col-8">
+                                    <h5 class="card-title">Change:</h5>
+                                    <h5 class="card-title">Current Price:</h5>
+                                    <h5 class="card-title">Market Value:</h5>
+                                </div>
+                                <div class="col-4" [ngStyle]="info.color">
+                                    <h5 class="card-title"><i [ngClass]="info.caretstyle"></i> {{info.change | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.currentprice | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.marketvalue | number:'1.2-2'}}</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <!-- buy -->
+                    <button type="button" class="btn btn-primary m-1" (click)="buyModalDeets(info.ticker, info.currentprice)">Buy</button>
+                    <!-- sell -->
+                    <button type="button" class="btn btn-danger m-1" (click)="sellModalDeets(info.ticker, info.currentprice)">Sell</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

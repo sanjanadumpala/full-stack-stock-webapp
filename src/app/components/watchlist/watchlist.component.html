@@ -1,0 +1,53 @@
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <h1 class="fs-1 my-5">My Watchlist</h1>
+            <!-- loading spinner -->
+            <div *ngIf="isContentLoading" class="loading-spinner d-flex justify-content-center">
+                <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+                <span class="sr-only" >Loading...</span>
+                </div>
+            </div>
+            <!-- empty watchlist alert -->
+            <div *ngIf="!this.hasItems && !isContentLoading" class="alert alert-warning text-center" role="alert">
+                Currently you don't have any stock in your watchlist.
+            </div>
+        </div>
+    </div>
+    <!-- watchlist cards -->
+    <div class="row">
+        <div *ngIf="!isContentLoading">
+            <div *ngFor="let info of print_info">
+                <div class="card mb-3">
+                    <a role="button" (click)="onClick(info.ticker)" class="stretched-link" style="cursor: pointer;"></a>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="container">
+                                <div class="row m-1 py-1">
+                                    <button 
+                                        type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="removeCard(info.ticker)" style="width: 0px; height: 0px; z-index: 2">
+                                    </button>
+                                </div>
+                                <div class="row">
+                                    <div class="col">
+                                        <h5 class="card-title">{{info.ticker}}</h5>
+                                        <p class="card-text">{{info.name}}</p>
+                                    </div>
+                                    <div class="col">
+                                        <h5 class="card-title" [ngStyle]="info.color">
+                                            {{info.currentprice | number:'1.2-2' }}
+                                        </h5>
+                                        <p class="card-text" [ngStyle]="info.color">
+                                            <i [ngClass]="info.caretstyle"></i>
+                                            {{info.change | number:'1.2-2' }} ({{info.changepercent | number:'1.2-2' }})%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

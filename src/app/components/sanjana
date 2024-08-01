@@ -1,0 +1,2216 @@
+import { Item } from './../../models/watchlist.model';
+import { Component } from '@angular/core';
+import { AutocompleteService } from '../../services/autocomplete.service';
+import { CommonModule } from '@angular/common';
+import { forkJoin } from 'rxjs';
+import { Router } from '@angular/router';
+
+@Component({
+  selector: 'app-watchlist',
+  standalone: true,
+  imports: [
+    CommonModule,
+  ],
+  templateUrl: './watchlist.component.html',
+  styleUrl: './watchlist.component.css'
+})
+export class WatchlistComponent {
+
+  watchlist_info: any[] = [];
+  company_info: any[] = [];
+  stock_info: any[] = [];
+  print_info: Item[] = [];
+  hasItems: boolean = false;
+
+  isContentLoading = true;
+
+  constructor(
+    private autocompleteService: AutocompleteService,
+    private router: Router,
+  ) {}
+
+  ngOnInit() {
+    this.displayWatchlist();
+  }
+
+  removeCard(ticker: string) {
+    this.autocompleteService.removeFromWatchlist(ticker).subscribe(data => {
+      this.watchlist_info = data;
+      this.displayWatchlist()
+  });
+  }
+
+  displayWatchlist () {
+    this.isContentLoading = true;
+    this.print_info = [];
+    this.autocompleteService.getWatchlist().subscribe(data => {
+      this.watchlist_info = data;
+      if (this.watchlist_info.length === 0) {
+        this.hasItems = false;
+      }
+
+      for (let i = 0; i < this.watchlist_info.length; i++) {
+        this.hasItems = true;
+        let caretstyle: string = '';
+        let color: {'color': string};
+        forkJoin([
+          this.autocompleteService.fetchCompanyData(this.watchlist_info[i].ticker),
+          this.autocompleteService.fetchStockData(this.watchlist_info[i].ticker),
+        ]).subscribe(([data1, data2]) => {
+          this.company_info = data1;
+          this.stock_info = data2;
+          if (this.stock_info[0].d < 0) {
+            caretstyle = "fa-solid fa-caret-down";
+            color = {'color': 'red'};
+          }
+          else if (this.stock_info[0].d = 0) {
+            caretstyle = "";
+            color = {'color': 'black'};
+          }
+          else {
+            caretstyle = "fa-solid fa-caret-up";
+            color = {'color': 'green'};
+          }
+          const tempPrintInfo: Item = {
+            ticker: this.watchlist_info[i].ticker,
+            name: this.company_info[0].name,
+            currentprice: this.stock_info[0].c,
+            change: this.stock_info[0].d,
+            changepercent: this.stock_info[0].dp,
+            caretstyle: caretstyle,
+            color: color
+          };
+          this.print_info.push(tempPrintInfo);
+        });
+      }
+      this.isContentLoading = false;
+    });
+  }
+
+  onClick (ticker: string) {
+    this.router.navigate(['/search', ticker]);
+  }
+}
+<div class="container">
+    <div class="row">
+        <div class="col">
+            <h1 class="fs-1 my-5">My Watchlist</h1>
+            <!-- loading spinner -->
+            <div *ngIf="isContentLoading" class="loading-spinner d-flex justify-content-center">
+                <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+                <span class="sr-only" >Loading...</span>
+                </div>
+            </div>
+            <!-- empty watchlist alert -->
+            <div *ngIf="!this.hasItems && !isContentLoading" class="alert alert-warning text-center" role="alert">
+                Currently you don't have any stock in your watchlist.
+            </div>
+        </div>
+    </div>
+    <!-- watchlist cards -->
+    <div class="row">
+        <div *ngIf="!isContentLoading">
+            <div *ngFor="let info of print_info">
+                <div class="card mb-3">
+                    <a role="button" (click)="onClick(info.ticker)" class="stretched-link" style="cursor: pointer;"></a>
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="container">
+                                <div class="row m-1 py-1">
+                                    <button 
+                                        type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="removeCard(info.ticker)" style="width: 0px; height: 0px; z-index: 2">
+                                    </button>
+                                </div>
+                                <div class="row">
+                                    <div class="col">
+                                        <h5 class="card-title">{{info.ticker}}</h5>
+                                        <p class="card-text">{{info.name}}</p>
+                                    </div>
+                                    <div class="col">
+                                        <h5 class="card-title" [ngStyle]="info.color">
+                                            {{info.currentprice | number:'1.2-2' }}
+                                        </h5>
+                                        <p class="card-text" [ngStyle]="info.color">
+                                            <i [ngClass]="info.caretstyle"></i>
+                                            {{info.change | number:'1.2-2' }} ({{info.changepercent | number:'1.2-2' }})%
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+import { CommonModule } from '@angular/common';
+import { Component, Input } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { NewsmodalComponent } from '../newsmodal/newsmodal.component';
+
+@Component({
+  selector: 'app-topnews',
+  standalone: true,
+  imports: [
+    CommonModule, 
+    FormsModule,
+    NewsmodalComponent,
+  ],
+  templateUrl: './topnews.component.html',
+  styleUrl: './topnews.component.css'
+})
+export class TopnewsComponent {
+  @Input() news_info: any;
+
+  constructor(private modalService: NgbModal) {}
+
+  open(info: any, event: MouseEvent) {
+    event.preventDefault();
+    const modalRef = this.modalService.open(NewsmodalComponent);
+    modalRef.componentInstance.info = info;
+  }
+}
+<div class="container">
+    <div class="row">
+        <div class="col-12 col-md-6" *ngFor="let info of news_info" (click)="open(info, $event)">
+            <div class="card mt-3" style="cursor: pointer; background-color: rgb(244, 244, 244);">
+                <div class="row p-2">
+                    <div class="col-md-4">
+                        <img [src]="info.image" 
+                            class="img-fluid rounded custom-img" 
+                            alt="Image description" 
+                            style="object-fit: cover; width: 100%; height: 7rem">
+                    </div>
+                    <div class="col-md-8">
+                        <div class="card-body py-auto">
+                            <p class="card-title text-center align-center truncate-2-lines m-0">{{info.headline}}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+.truncate-2-lines {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+    -webkit-line-clamp: 2;
+    text-overflow: ellipsis;
+  }
+
+  import { Component, Input } from '@angular/core';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import Highcharts from 'highcharts';
+import { HighchartsChartModule } from 'highcharts-angular';
+
+@Component({
+  selector: 'app-summary',
+  standalone: true,
+  imports: [
+    CommonModule, 
+    FormsModule, 
+    HighchartsChartModule,
+  ],
+  templateUrl: './summary.component.html',
+  styleUrl: './summary.component.css'
+})
+export class SummaryComponent {
+  @Input() company_info: any;
+  @Input() stock_info: any;
+  @Input() peer_info: any;
+  @Input() graph_info: any;
+  @Input() graph_info2: any;
+  @Input() queryTicker: string = '';
+  @Input() onSearch!: Function;
+  @Input() graphColor: string = '';
+
+  Highcharts: typeof Highcharts = Highcharts;
+  chartOptions!: Highcharts.Options;
+  updateFlag = false;
+
+  ngOnInit(): void {
+    if (this.graph_info2 !== null ) {
+      this.initializeChart();
+    }
+  }
+
+  initializeChart(): void {
+    var data = [];
+    for (let i=0; i < this.graph_info2[0].resultsCount; i++) {
+      data.push([this.graph_info2[0].results[i].t, this.graph_info2[0].results[i].c])
+    }
+    this.chartOptions = {
+      chart: {
+        backgroundColor: '#f0f0f0',
+      },
+      title: {
+        text: `${this.queryTicker} Hourly Price Variation`,
+        align: 'center'
+      },
+      yAxis: {
+        title: {
+            text: ''
+        },
+        opposite: true,
+      },
+      xAxis: {
+        type: 'datetime',
+      },
+      plotOptions: {
+        series: {
+            label: {
+                connectorAllowed: false
+            },
+            marker: {
+              enabled: false
+            },
+            pointStart: 2010
+        }
+      },
+      series: [
+        {
+          name: `${this.queryTicker}`,
+          type: 'line',
+          data: data,
+          color: this.graphColor
+        }
+      ],
+      legend: {
+        enabled: false
+      }
+    };
+  }
+}
+
+<div class="container">
+    <div class="row my-4">
+        <div class="col-sm">
+            <div class="row">
+                <div class="col-lg-6 col-sm-12">
+                    <div class="text-center justify">
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>High Price:</b> {{info.h | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Low Price:</b> {{info.l | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Open Price:</b> {{info.o | number:'1.2-2' }}</p>
+                        <p *ngFor="let info of stock_info" style="margin: 0"><b>Prev. Close:</b> {{info.pc | number:'1.2-2' }}</p>
+                    </div>
+                </div>
+                <div class="col-lg-6 col-sm-0">
+
+                </div>
+            </div>
+            <div class="row text-center my-5">
+                <div>
+                    <p class="fs-5 font-weight-bold"><u><b>About the company</b></u></p>
+                    <p *ngFor="let info of company_info"><b>IPO Start Date:</b> {{info.ipo}}</p>
+                    <p *ngFor="let info of company_info"><b>Industry:</b> {{info.finnhubIndustry}}</p>
+                    <p *ngFor="let info of company_info"><b>Webpage: </b><a href="{{info.weburl}}" target="_blank">{{info.weburl}}</a></p>
+                    <p><b>Company Peers:</b></p>
+                    <span *ngFor="let name of peer_info; let last = last">
+                        <a class="link-primary" (click)="onSearch(name)" style="cursor: pointer">{{name}}</a><span *ngIf="!last">, </span>
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div class="col">
+            <div>
+                <highcharts-chart 
+                [Highcharts]="Highcharts"
+                [options]="chartOptions"
+                style="width: 100%; height: 400px; display: block;">
+                </highcharts-chart>
+            </div>
+        </div>
+    </div>
+</div> 
+
+import { Component, Input } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { AutocompleteService } from '../../services/autocomplete.service';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+@Component({
+  selector: 'app-sellmodal',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule
+  ],
+  templateUrl: './sellmodal.component.html',
+  styleUrl: './sellmodal.component.css'
+})
+export class SellmodalComponent {
+  @Input() portfolio_info: any;
+  @Input() ticker: any;
+  @Input() moneyInWallet: any;
+  @Input() currentPrice: any;
+  inputValue: number = 0;
+  ogMoneyInWallet: string = '';
+  found: number = -1;
+  wallet_info: any[] = [];
+
+  constructor(
+    public modal: NgbActiveModal,
+    private autocompleteService: AutocompleteService, 
+    ) {
+  }
+
+  ngOnInit() {
+    if (this.ticker && this.moneyInWallet && this.currentPrice && this.portfolio_info) {
+      this.ogMoneyInWallet = this.moneyInWallet;
+      for (let i = 0; i < this.portfolio_info.length; i++) {
+        if (this.portfolio_info[i].ticker === this.ticker) {
+          this.found = i;
+        }
+      }
+
+    }
+  }
+
+  enoughStocks () {
+    if (this.portfolio_info[this.found].stocks) {
+      return Number(this.inputValue) > Number(this.portfolio_info[this.found].stocks);
+    }
+    else {
+      return false
+    }
+  }
+
+  removeFromPortfolio () {
+    if (+this.portfolio_info[this.found].stocks === +this.inputValue) {
+      this.autocompleteService.removeFromPortfolio(this.ticker).subscribe(data => {
+        this.portfolio_info = data;
+        this.found = -1;
+        this.sendSellResult(false);
+
+      });
+    }
+    else {
+      let newQuantity = +this.portfolio_info[this.found].stocks - +this.inputValue;
+      let newTotalCost = +this.portfolio_info[this.found].totalcost - ((+this.portfolio_info[this.found].totalcost/+this.portfolio_info[this.found].stocks) * +this.inputValue);
+      newTotalCost = parseFloat(newTotalCost.toFixed(2));
+      this.autocompleteService.updatePortfolio(this.ticker, String(newQuantity), String(newTotalCost)).subscribe(data => {
+        this.portfolio_info = data;
+        this.found = -1;
+        this.sendSellResult(true)
+      });
+    }
+  }
+
+  sendSellResult(canSell: boolean) {
+    let temp = Number(this.moneyInWallet) + this.currentPrice*this.inputValue;
+    temp = parseFloat(temp.toFixed(2));
+    this.moneyInWallet = String(temp);  
+    this.autocompleteService.setWallet(this.moneyInWallet).subscribe(data => {
+      this.wallet_info = data;
+      this.modal.close(canSell);
+    });
+  }
+}
+
+<div class="modal-header">
+    <h5 class="modal-title" id="exampleModalLabel">{{ticker}}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body text-left">
+    <p>Current Price: {{currentPrice}}</p>
+    <p>Money in Wallet: ${{ogMoneyInWallet}}</p>
+    <div class="form-outline d-flex justify-content-between">
+        <label class="form-label" for="typeNumber">Quantity:</label>
+        <input type="number" id="typeNumber" class="form-control m-1" [(ngModel)]="inputValue" value="0" min="0"/>
+    </div>
+    <p class="text-danger" *ngIf="enoughStocks()">You cannot sell the stocks that you don't have!</p>
+</div>
+<div class="modal-footer d-flex justify-content-between">
+    <p>Total: {{ (this.currentPrice * this.inputValue) | number:'1.2-2' }}</p>
+    <button type="button" class="btn btn-success" data-bs-dismiss="modal" [disabled]="enoughStocks() || !this.inputValue" (click)="removeFromPortfolio()">Sell</button>
+</div>
+
+import { AutocompleteService } from './../../services/autocomplete.service';
+import { Component, ElementRef, ViewChild } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { CommonModule } from '@angular/common';
+import { debounceTime, distinctUntilChanged, switchMap, filter } from 'rxjs/operators';
+import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { SummaryComponent } from '../summary/summary.component';
+import { interval, Subscription } from 'rxjs';
+import { TopnewsComponent } from '../topnews/topnews.component';
+import { ChartsComponent } from '../charts/charts.component';
+import { InsightsComponent } from '../insights/insights.component';
+import { Router } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+import { forkJoin } from 'rxjs';
+import { BehaviorSubject } from 'rxjs';
+import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+import { BuymodalComponent } from '../buymodal/buymodal.component';
+import { SellmodalComponent } from '../sellmodal/sellmodal.component';
+import { Item } from './../../models/state.model';
+import { of } from 'rxjs';
+
+
+
+@Component({
+  selector: 'app-searchbar',
+  standalone: true,
+  imports: [
+    FormsModule, 
+    CommonModule, 
+    ReactiveFormsModule, 
+    SummaryComponent,
+    TopnewsComponent,
+    ChartsComponent,
+    InsightsComponent,
+    FontAwesomeModule,
+    BuymodalComponent,
+    SellmodalComponent
+  ],
+  templateUrl: './searchbar.component.html',
+  styleUrl: './searchbar.component.css',
+})
+
+export class SearchbarComponent {
+  company_info: any[] = []; 
+  stock_info: any[] = [];
+  peer_info: any[] = [];
+  graph_info: any[] = [];
+  news_info: any[] = [];
+  trend_info: any[] = [];
+  sentiment_info: any[] = [];
+  earning_info: any[] = [];
+  watchlist_info: any[] = [];
+  watchlist_check_info: any[] = [];
+  portfolio_info: any[] = [];
+  portfolio_check_info: any[] = [];
+  wallet_info: any[] = [];
+  graph_info2: any[] = [];
+  searchQuery = new FormControl();
+  suggestions: any[] = [];
+  isContentLoading = false;
+  isLoading = false;
+  initialLoading = false;
+  showBaseInfo = false;
+  activeMenuItem = 'summary';
+  ticker: string = '';
+  IsMarketOpen: boolean = false;
+  watchlistToggle: boolean = false;
+  caretStyle: string = '';
+  showAddAlert: boolean = false;
+  showRemoveAlert: boolean = false;
+  showPAddAlert: boolean = false;
+  showPRemoveAlert: boolean = false;
+  currentPrice: number = 0;
+  moneyInWallet: string = '25000.00';
+  inputValue: number = 0;
+  showInvalidAlert: boolean = false;
+  t: string = '';
+  newTime: string = '';
+  formValue: string = '';
+  watchlistColor$: BehaviorSubject<{ color: string }> = new BehaviorSubject<{ color: string }>({ 'color': 'black' });
+  wColor: {color: string} = {color: 'black'};
+  watchlistStyle$: BehaviorSubject<string> = new BehaviorSubject<string>('fa-regular fa-star fa-xl');
+  wStyle:string = 'fa-regular fa-star fa-xl';
+  canSell$: BehaviorSubject<boolean> = new BehaviorSubject<boolean>(false);
+  csell:boolean = false;
+  state_info: Item[] = [];
+  graphColor: string = '';
+  constructor(
+    private autocompleteService: AutocompleteService, 
+    private router: Router,
+    private route: ActivatedRoute,
+    private modalService: NgbModal,
+    ) {}
+  private intervalSubscription!: Subscription;
+  private searchSubscription: Subscription = new Subscription();
+
+  @ViewChild('searchInput') searchInput!: ElementRef;
+
+
+  clearSearch() {
+    this.searchQuery.setValue('');
+    this.router.navigate(['/search/home']);
+    this.state_info = [];
+    this.suggestions = [];
+    this.showBaseInfo = false;
+    this.IsMarketOpen = false;
+    this.isLoading = false;
+    this.isContentLoading = false;
+    this.showInvalidAlert = false;
+    this.initialLoading = false;
+  }
+
+  ngOnInit() {
+    var t = this.route.snapshot.paramMap.get('ticker')
+    if (t !== "home") {
+      this.onSearch(t)
+      return
+    }
+    this.getState();
+  }
+
+  getState() {
+    const stateInfoJson = sessionStorage.getItem('routeState');
+    if (stateInfoJson) {
+      let convertedStateInfoJson = JSON.parse(stateInfoJson);
+      if (convertedStateInfoJson.company_info.length === 0) {
+        this.showBaseInfo = false;
+        this.initiateSearchSubscription();
+        this.getCurrentTime();
+        this.initiateIterativeCall();
+      }
+      else {
+        this.company_info = convertedStateInfoJson.company_info;
+        this.stock_info = convertedStateInfoJson.stock_info;
+        this.peer_info = convertedStateInfoJson.peer_info;
+        this.graph_info = convertedStateInfoJson.graph_info;
+        this.news_info = convertedStateInfoJson.news_info;
+        this.trend_info = convertedStateInfoJson.trend_info;
+        this.sentiment_info = convertedStateInfoJson.sentiment_info;
+        this.earning_info = convertedStateInfoJson.earning_info;
+        this.watchlist_info = convertedStateInfoJson.watchlist_info;
+        this.watchlist_check_info = convertedStateInfoJson.watchlist_check_info;
+        this.portfolio_info = convertedStateInfoJson.portfolio_info;
+        this.portfolio_check_info = convertedStateInfoJson.portfolio_check_info;
+        this.wallet_info = convertedStateInfoJson.wallet_info;
+        this.graph_info2 = convertedStateInfoJson.graph_info2;
+        this.searchQuery.setValue(convertedStateInfoJson.formValue);
+        this.suggestions = convertedStateInfoJson.suggestions;
+        this.isContentLoading = convertedStateInfoJson.isContentLoading;
+        this.isLoading = convertedStateInfoJson.isLoading;
+        this.initialLoading = convertedStateInfoJson.initialLoading;
+        this.showBaseInfo = convertedStateInfoJson.showBaseInfo;
+        this.activeMenuItem = convertedStateInfoJson.activeMenuItem;
+        this.ticker = convertedStateInfoJson.ticker;
+        this.IsMarketOpen = convertedStateInfoJson.IsMarketOpen;
+        this.watchlistToggle = convertedStateInfoJson.watchlistToggle;
+        this.caretStyle = convertedStateInfoJson.caretStyle;
+        this.showAddAlert = false;
+        this.showRemoveAlert = false;
+        this.showPAddAlert = false;
+        this.showPRemoveAlert = false;
+        this.currentPrice = convertedStateInfoJson.currentPrice;
+        this.moneyInWallet = convertedStateInfoJson.moneyInWallet;
+        this.inputValue = convertedStateInfoJson.inputValue;
+        this.showInvalidAlert = convertedStateInfoJson.showInvalidAlert;
+        this.t = convertedStateInfoJson.t;
+        this.newTime = convertedStateInfoJson.newTime;
+        this.router.navigate(['/search', this.searchQuery.value]);
+        this.watchlistColor$.next(convertedStateInfoJson.wColor);
+        this.watchlistStyle$.next(convertedStateInfoJson.wStyle);
+        this.canSell$.next(convertedStateInfoJson.cSell);
+
+        this.initiateSearchSubscription();
+        this.getCurrentTime();
+        this.initiateIterativeCall();
+        this.autocompleteService.getPortfolio().subscribe(data => {
+          this.portfolio_info = data;
+          this.checkWatchlist(this.ticker);
+        });
+      }
+    }
+    else {
+      this.initiateSearchSubscription();
+      this.getCurrentTime();
+      this.initiateIterativeCall();
+    }
+  }
+
+  ngOnDestroy() {
+    this.intervalSubscription.unsubscribe();
+    this.searchSubscription.unsubscribe();
+    this.saveState();
+  }
+
+  saveState() {
+    if (this.searchQuery.value === '') {
+      const stateInfo: Item = {
+        company_info: [],
+        stock_info: [],
+        peer_info: [],
+        graph_info: [],
+        news_info: [],
+        trend_info: [],
+        sentiment_info: [],
+        earning_info: [],
+        watchlist_info: [],
+        watchlist_check_info: [],
+        portfolio_info: [],
+        portfolio_check_info: [],
+        wallet_info: [],
+        graph_info2: [],
+        formValue: '',
+        suggestions: [],
+        isContentLoading: false,
+        isLoading: false,
+        initialLoading: false,
+        showBaseInfo: false,
+        activeMenuItem: 'summary',
+        ticker: '',
+        IsMarketOpen: false,
+        watchlistToggle: false,
+        caretStyle: '',
+        showAddAlert: false,
+        showRemoveAlert: false,
+        showPAddAlert: false,
+        showPRemoveAlert: false,
+        currentPrice: 0,
+        moneyInWallet: '25000.00',
+        inputValue: 0,
+        showInvalidAlert: false,
+        t: '',
+        newTime: '',
+        wColor: {color: 'black'},
+        wStyle: 'fa-regular fa-star fa-xl',
+        cSell: false
+      };
+      const stateInfoJson = JSON.stringify(stateInfo);
+      sessionStorage.setItem('routeState', stateInfoJson);
+    }
+    else {
+      const stateInfo: Item = {
+        company_info: this.company_info,
+        stock_info: this.stock_info,
+        peer_info: this.peer_info,
+        graph_info: this.graph_info,
+        news_info: this.news_info,
+        trend_info: this.trend_info,
+        sentiment_info: this.sentiment_info,
+        earning_info: this.earning_info,
+        watchlist_info: this.watchlist_info,
+        watchlist_check_info: this.watchlist_check_info,
+        portfolio_info: this.portfolio_info,
+        portfolio_check_info: this.portfolio_check_info,
+        wallet_info: this.wallet_info,
+        graph_info2: this.graph_info2,
+        formValue: this.searchQuery.value,
+        suggestions: this.suggestions,
+        isContentLoading: this.isContentLoading,
+        isLoading: this.isLoading,
+        initialLoading: this.initialLoading,
+        showBaseInfo: this.showBaseInfo,
+        activeMenuItem: this.activeMenuItem,
+        ticker: this.ticker,
+        IsMarketOpen: this.IsMarketOpen,
+        watchlistToggle: this.watchlistToggle,
+        caretStyle: this.caretStyle,
+        showAddAlert: this.showAddAlert,
+        showRemoveAlert: this.showRemoveAlert,
+        showPAddAlert: this.showPAddAlert,
+        showPRemoveAlert: this.showPRemoveAlert,
+        currentPrice: this.currentPrice,
+        moneyInWallet: this.moneyInWallet,
+        inputValue: this.inputValue,
+        showInvalidAlert: this.showInvalidAlert,
+        t: this.t,
+        newTime: this.newTime,
+        wColor: this.watchlistColor$.value,
+        wStyle: this.watchlistStyle$.value,
+        cSell: this.canSell$.value
+      };
+      const stateInfoJson = JSON.stringify(stateInfo);
+      sessionStorage.setItem('routeState', stateInfoJson);
+    }
+  }
+
+  // The following code was adapted from a solution provided by OpenAI's Assistant.
+  // initiateSearchSubscription() {
+  //   this.searchSubscription = this.searchQuery.valueChanges.pipe(
+  //     debounceTime(300),
+  //     distinctUntilChanged(),
+  //     filter(term => term.length > 0),
+  //     switchMap(term => {
+  //       this.suggestions = [];
+  //       this.initialLoading = true;
+  //       this.isLoading = true;
+  //       return this.autocompleteService.autocompleteData(term)
+  //     })).subscribe(data => {
+  //       this.suggestions = data;
+  //       this.isLoading = false;
+  //     });
+  // }
+
+  // The following code was adapted from a solution provided by OpenAI's Assistant.
+  initiateSearchSubscription() {
+    this.searchSubscription = this.searchQuery.valueChanges.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap(term => {
+        if (term.length === 0) {
+          this.suggestions = [];
+          this.initialLoading = false;
+          this.isLoading = false;
+          return of([]);
+        } else {
+          this.suggestions = [];
+          this.initialLoading = true;
+          this.isLoading = true;
+          return this.autocompleteService.autocompleteData(term);
+        }
+      }),
+      filter(data => data.length > 0)
+    ).subscribe(data => {
+      this.suggestions = data;
+      this.isLoading = false;
+    });
+  }
+
+  initiateIterativeCall() {
+    this.intervalSubscription = interval(15000).subscribe(() => {
+      this.getCurrentTime();
+      if (this.IsMarketOpen && this.ticker) {
+        this.fetchStockDataFn(this.ticker);
+      }
+    });
+  }
+
+  getCurrentTime() {
+    let tempTime = new Date();
+    const options: Intl.DateTimeFormatOptions = {
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: false, timeZone: 'America/Los_Angeles'
+    };
+    this.newTime = tempTime.toLocaleTimeString("en-US", options);
+    this.newTime = this.newTime.replace(/(\d{2})\/(\d{2})\/(\d{4}),/, '$3-$1-$2');
+  }
+
+  fetchStockDataFn(ticker: string) {
+    this.autocompleteService.fetchStockData(ticker).subscribe(data => {
+      this.stock_info = data;
+    });
+  }
+
+  onSearch(searchTerm: any) {
+    this.activeMenuItem = "summary"
+    this.showBaseInfo = false;
+    if (searchTerm === null) {
+      this.showInvalidAlert = false;
+      this.isContentLoading = false;
+      this.showBaseInfo = false;
+      this.showInvalidAlert = true;
+      return;
+    }
+    searchTerm = searchTerm.toUpperCase();
+    this.searchQuery.setValue(searchTerm);
+    this.searchSubscription.unsubscribe();
+    this.initialLoading = false;
+    this.initiateSearchSubscription();
+    if (this.intervalSubscription === undefined) {
+      this.initiateIterativeCall();
+    }
+    this.suggestions = [];
+    this.ticker = searchTerm;
+    this.isContentLoading = true;
+
+    forkJoin([
+      this.autocompleteService.fetchCompanyData(this.ticker),
+      this.autocompleteService.fetchStockData(this.ticker),
+      this.autocompleteService.fetchPeerData(this.ticker),
+      this.autocompleteService.fetchGraphData(this.ticker),
+      this.autocompleteService.fetchNewsData(this.ticker),
+      this.autocompleteService.fetchTrendsData(this.ticker),
+      this.autocompleteService.fetchSentimentData(this.ticker),
+      this.autocompleteService.fetchEarningData(this.ticker),
+      this.autocompleteService.fetchGraphData2(this.ticker),
+    ]).subscribe(([data1, data2, data3, data4, data5, data6, data7, data8, data9]) => {
+      this.company_info = data1;
+      this.stock_info = data2;
+      this.peer_info = data3;
+      this.graph_info = data4;
+      this.news_info = data5;
+      this.trend_info = data6;
+      this.sentiment_info = data7;
+      this.earning_info = data8;
+      this.graph_info2 = data9;
+
+      if (this.company_info[0].ticker === undefined) {
+        this.showInvalidAlert = false;
+        this.isContentLoading = false;
+        this.showBaseInfo = false;
+        this.showInvalidAlert = true;
+          // setTimeout(() => {
+          //   this.showInvalidAlert = false;
+          // }, 3000);
+        return;
+      }
+
+      if (this.IsMarketOpen) {
+        this.autocompleteService.fetchCompanyData(this.ticker)
+      }
+      this.checkWatchlist(this.ticker);
+      this.router.navigate(['/search', searchTerm]);
+      this.searchInput.nativeElement.blur();
+      this.inputValue = 0;
+    });
+
+  }
+
+  selectSuggestion(suggestion: any) {
+    this.searchQuery.setValue(suggestion.displaySymbol);
+    this.suggestions = [];
+    this.onSearch(this.searchQuery.value)
+  }
+
+  getColorForStock(info: any): string {
+    if (info.d < 0) {
+      this.graphColor = 'red'
+      this.caretStyle = "fa-solid fa-caret-down";
+      return 'red'
+    }
+    else if (info.d < 0) {
+      this.graphColor = 'black'
+      this.caretStyle = "";
+      return 'black'
+    }
+    else {
+      this.graphColor = 'green'
+      this.caretStyle = "fa-solid fa-caret-up";
+      return 'green'
+    }
+  }
+
+  correctDate(epoch: number): string {
+      const date = new Date(epoch * 1000);
+      const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric', month: '2-digit', day: '2-digit',
+        hour: '2-digit', minute: '2-digit', second: '2-digit',
+        hour12: false, timeZone: 'America/Los_Angeles'
+      };
+
+      let formattedDate = date.toLocaleString('en-US', options);
+      formattedDate = formattedDate.replace(/(\d{2})\/(\d{2})\/(\d{4}),/, '$3-$1-$2');
+      
+      return formattedDate;
+  }
+
+  // The following code was adapted from a solution provided by OpenAI's Assistant.
+  // stockMarketStatus(epoch: number): string {
+  //   const pstDate = new Date(this.correctDate(epoch));
+  //   const dayOfWeek = pstDate.getDay();
+  //   const hour = pstDate.getHours();
+  //   const minute = pstDate.getMinutes();
+
+  //   if (dayOfWeek === 0 || dayOfWeek === 6) {
+  //     const lastFridayEpoch = epoch - ((dayOfWeek === 0 ? 2 : 1) + (dayOfWeek === 6 ? 1 : 0)) * 24 * 60 * 60 * 1000;
+  //     this.IsMarketOpen = false;
+  //     return `Market Closed on ${this.correctDate(lastFridayEpoch).split(' ')[0]} 13:00:00`;
+  //   }
+  //   const isOpen = hour === 6 && minute >= 30 || hour > 6 && hour < 13;
+
+  //   if (isOpen) {
+  //     this.IsMarketOpen = true;
+  //     return "Market is Open";
+  //   } else {
+  //     if (hour >= 13) {
+  //       this.IsMarketOpen = false;
+  //       return `Market Closed on ${this.correctDate(epoch).split(' ')[0]} 13:00:00`;
+  //     }
+  //     else {
+  //       if (dayOfWeek === 1) {
+  //         const lastFridayEpoch = epoch - 3 * 24 * 60 * 60 * 1000;
+  //         this.IsMarketOpen = false;
+  //         return `Market Closed on ${this.correctDate(lastFridayEpoch).split(' ')[0]} 13:00:00`;
+  //       } else {
+  //         const previousDayEpoch = epoch - 24 * 60 * 60 * 1000;
+  //         this.IsMarketOpen = false;
+  //         return `Market Closed on ${this.correctDate(previousDayEpoch).split(' ')[0]} 13:00:00`;
+  //       }
+  //     }
+  //   }
+  // }
+
+    
+  // The following code was adapted from a solution provided by OpenAI's Assistant.
+  stockMarketStatus(epoch: number): string {
+    const pstDate = new Date(this.correctDate(epoch));
+    const dayOfWeek = pstDate.getDay();
+    const hour = pstDate.getHours();
+    const minute = pstDate.getMinutes();
+
+    if (dayOfWeek === 0 || dayOfWeek === 6) {
+      const lastFridayEpoch = epoch - ((dayOfWeek === 0 ? 2 : 1) + (dayOfWeek === 6 ? 1 : 0)) * 24 * 60 * 60 * 1000;
+      this.IsMarketOpen = false;
+      return `Market Closed on ${this.correctDate(epoch)}`;
+    }
+    const isOpen = hour === 6 && minute >= 30 || hour > 6 && hour < 13;
+
+    if (isOpen) {
+      this.IsMarketOpen = true;
+      return "Market is Open";
+    } else {
+      if (hour >= 13) {
+        this.IsMarketOpen = false;
+        return `Market Closed on ${this.correctDate(epoch)}`;
+      }
+      else {
+        if (dayOfWeek === 1) {
+          const lastFridayEpoch = epoch - 3 * 24 * 60 * 60 * 1000;
+          this.IsMarketOpen = false;
+          return `Market Closed on ${this.correctDate(epoch)}`;
+        } else {
+          const previousDayEpoch = epoch - 24 * 60 * 60 * 1000;
+          this.IsMarketOpen = false;
+          return `Market Closed on ${this.correctDate(epoch)}`;
+        }
+      }
+    }
+  }
+
+  getMarketColor(statusMessage: string): string {
+    return statusMessage.startsWith("Market is Open") ? "green" : "red";
+  }
+
+  setActiveMenuItem(componentName: string): void {
+    this.activeMenuItem = componentName;
+  }
+
+  ToggleWatchlist(ticker: string): void {
+    if (this.watchlistToggle == false) {
+      this.watchlistToggle = true;
+      this.watchlistColor$.next({'color': '#ffd43b'});
+      this.watchlistStyle$.next('fa-solid fa-star fa-xl');
+
+      this.showAddAlert = true;
+      setTimeout(() => {
+        this.showAddAlert = false;
+      }, 3000);
+      this.autocompleteService.addToWatchlist(ticker).subscribe(data => {
+        this.watchlist_info = data;
+      });
+    }
+    else {
+      this.watchlistToggle = false;
+      this.watchlistColor$.next({'color': 'black'});
+      this.watchlistStyle$.next('fa-regular fa-star fa-xl');
+      this.showRemoveAlert = true;
+      setTimeout(() => {
+        this.showRemoveAlert = false;
+      }, 3000);
+      this.autocompleteService.removeFromWatchlist(ticker).subscribe(data => {
+        this.watchlist_info = data;
+      });
+    }
+  }
+
+  checkWatchlist(ticker: string) {
+    this.autocompleteService.checkWatchlist(ticker).subscribe(data => {
+      this.watchlist_check_info = data;
+      this.watchlistToggle = (this.watchlist_check_info.length != 0 ? true : false);
+      this.watchlistColor$.next(this.watchlist_check_info.length != 0 ? {'color': '#ffd43b'} : {'color': 'black'});
+      this.watchlistStyle$.next(this.watchlist_check_info.length != 0 ? 'fa-solid fa-star fa-xl' : 'fa-regular fa-star fa-xl');
+      this.checkSellButton(ticker);
+    });
+  }
+
+  checkSellButton (ticker: string) {
+    this.autocompleteService.checkPortfolio(ticker).subscribe(data => {
+      this.portfolio_check_info = data;
+      this.canSell$.next(this.portfolio_check_info.length != 0 ? true : false);
+      this.isContentLoading = false;
+      this.showBaseInfo = true;
+    });
+  }
+
+  buyModalDeets () {
+    this.currentPrice = this.stock_info[0].c;
+    this.currentPrice = parseFloat(this.currentPrice.toFixed(2));
+
+    this.autocompleteService.getWallet().subscribe(data => {
+      this.wallet_info = data;
+      for (let i = 0; i < this.wallet_info.length; i++) {
+        this.moneyInWallet = this.wallet_info[i].total;
+      }
+      const modalBuy = this.modalService.open(BuymodalComponent);
+      modalBuy.componentInstance.portfolio_info = this.portfolio_info;
+      modalBuy.componentInstance.ticker = this.company_info[0].ticker;
+      modalBuy.componentInstance.moneyInWallet = this.moneyInWallet;
+      modalBuy.componentInstance.currentPrice = this.currentPrice;
+      modalBuy.result.then(
+        (result) => {
+          this.canSell$.next(result);
+          this.showPAddAlert = true;
+          setTimeout(() => {
+            this.showPAddAlert = false;
+          }, 3000);
+          this.refreshPortfolio();
+        }
+      );
+    });
+  }
+
+  sellModalDeets () {
+    this.currentPrice = this.stock_info[0].c;
+    this.currentPrice = parseFloat(this.currentPrice.toFixed(2));
+
+    this.autocompleteService.getWallet().subscribe(data => {
+      this.wallet_info = data;
+      for (let i = 0; i < this.wallet_info.length; i++) {
+        this.moneyInWallet = this.wallet_info[i].total;
+      }
+      const modalSell = this.modalService.open(SellmodalComponent);
+      modalSell.componentInstance.portfolio_info = this.portfolio_info;
+      modalSell.componentInstance.ticker = this.company_info[0].ticker;
+      modalSell.componentInstance.moneyInWallet = this.moneyInWallet;
+      modalSell.componentInstance.currentPrice = this.currentPrice;
+      modalSell.result.then(
+        (result) => {
+          this.canSell$.next(result);
+          this.showPRemoveAlert = true;
+          setTimeout(() => {
+            this.showPRemoveAlert = false;
+          }, 3000);
+          this.refreshPortfolio();
+        }
+      );
+    });
+  }
+
+  refreshPortfolio() {
+    this.autocompleteService.getPortfolio().subscribe(data => {
+      this.portfolio_info = data;
+    });
+  }
+}
+
+<div class="container-md" style="padding: 7px;">
+  <p class="fs-1 my-4 text-center ">STOCK SEARCH</p>
+  <!-- search bar -->
+  <div class="container-sm" style="width: 95%; max-width: 550px;">
+    <div class="col-sm mb-3 input-group">
+      <input #searchInput type="text" class="form-control-custom" placeholder="Enter stock ticker symbol" aria-label="Search" aria-describedby="search-button" (keyup.enter)="onSearch(searchQuery.value)" [formControl]="searchQuery">
+      <button class="btn searchbox-btn-custom" type="button" id="search-button" (click)="onSearch(searchQuery.value)">
+        <i class="bi bi-search"></i>
+      </button>
+      <button class="btn searchbox-btn-custom" type="button" id="cross-button" (click)="clearSearch()">
+        <i class="bi bi-x-lg"></i>
+      </button>
+    </div>
+  </div>
+  <!-- loading spinner -->
+  <div class="row" style="max-height: 1000px">
+    <div *ngIf="isContentLoading" class="loading-spinner" style="display: flex; justify-content: center;">
+      <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+  </div>
+  <!-- autocomplete -->
+  <div *ngIf="initialLoading || (suggestions.length && !isLoading)" class="suggestions-dropdown container-sm" style="width: 60%; max-width: 400px; margin-top: -30px; transform: translateX(-2rem);">
+    <div *ngIf="isLoading" class="loading-spinner clearfix">
+      <div class="spinner-border spinner-border-sm" style="color: darkblue" role="status">
+        <span class="sr-only">Loading...</span>
+      </div>
+    </div>
+    <div *ngFor="let suggestion of suggestions" (click)="selectSuggestion(suggestion)">
+      {{ suggestion.displaySymbol }} | {{ suggestion.description }}
+    </div>
+  </div>
+  <!-- invalid ticker -->
+  <div class="row mx-1">
+    <div *ngIf="showInvalidAlert" class="alert alert-danger alert-dismissible fade show text-center" role="alert">
+      No data found. Please enter a valid Ticker.
+    </div>
+  </div>
+  <!-- base info -->
+  <div class="container text-center" *ngIf="showBaseInfo" style="padding: 0;">
+    <!-- added to watchlist alert -->
+    <div *ngIf="showAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ticker}} added to Watchlist.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+    </div>
+    <!-- removed from watchlist alert -->
+    <div *ngIf="showRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ticker}} removed from Watchlist.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+    </div>
+    <!-- added to portfolio alert -->
+    <div *ngIf="showPAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+      {{ticker}} bought successfully.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+    </div>
+    <!-- removed from portfolio alert -->
+    <div *ngIf="showPRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+      {{ticker}} sold successfully.
+      <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+    </div>
+    <div class="container">
+      <div class="row g-0" *ngFor="let info of company_info">
+        <div class="col">
+          <!-- company info -->
+          <p class="fs-2">{{info.ticker}} <button class="btn btn-sm" style="cursor: pointer" (click)="ToggleWatchlist(info.ticker)"><i [ngClass]="watchlistStyle$ | async" [ngStyle]="watchlistColor$ | async"></i></button></p>
+          <p class="text-muted" style="font-size: 1.2rem">{{info.name}}</p>
+          <p style="font-size: 0.8rem" *ngFor="let info of company_info">{{info.exchange}}</p>
+          <!-- buy button -->
+          <button type="button" class="btn btn-success btn-custom" (click)="buyModalDeets()">Buy</button>
+          <!-- sell button -->
+          <button *ngIf="canSell$ | async" type="button" class="btn btn-danger btn-custom" (click)="sellModalDeets()">Sell</button>
+        </div>
+        <!-- company logo -->
+        <div class="col-4" *ngFor="let info of company_info">
+          <img class="img-fluid col-6 col-md-3" src={{info.logo}}/>
+        </div>
+        <!-- stock info -->
+        <div class="col">
+          <p class="fs-2" [ngStyle]="{'color': getColorForStock(info)}" *ngFor="let info of stock_info">{{info.c | number:'1.2-2' }}</p>
+          <p style="font-size: 0.9rem" [ngStyle]="{'color': getColorForStock(info)}" *ngFor="let info of stock_info"><i [ngClass]="caretStyle" [ngStyle]="{'color': getColorForStock(info)}"></i> {{info.d | number:'1.2-2' }} ({{info.dp | number:'1.2-2' }}%)</p>
+          <p style="font-size: 0.7rem" *ngFor="let info of stock_info">{{this.newTime}}</p>
+        </div>
+      </div>
+      <!-- market status -->
+      <div class="row">
+        <p [ngStyle]="{'font-size': '0.8rem', 'font-weight': 'bold', 'color': getMarketColor(stockMarketStatus(info.t))}" *ngFor="let info of stock_info">
+          {{stockMarketStatus(info.t)}}
+        </p>
+      </div>
+    </div>
+  </div>
+  <!-- menu -->
+  <div class="container-lg" *ngIf="showBaseInfo">
+    <div class="horizontal-menu d-flex overflow-auto">
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'summary'" (click)="setActiveMenuItem('summary')">Summary</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'topnews'" (click)="setActiveMenuItem('topnews')">Top News</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'charts'" (click)="setActiveMenuItem('charts')">Charts</a>
+      <a class="menu-item menu-item-custom" style="cursor: pointer" [class.active]="activeMenuItem === 'insights'" (click)="setActiveMenuItem('insights')">Insights</a>
+    </div>
+  </div>
+
+  <app-summary *ngIf="activeMenuItem === 'summary' && showBaseInfo" [company_info]="company_info" [stock_info]="stock_info" [peer_info]="peer_info" [graph_info]="graph_info" [queryTicker]="ticker" [onSearch]="onSearch.bind(this)" [graph_info2]="graph_info2" [graphColor]="graphColor"></app-summary>
+  <app-topnews *ngIf="activeMenuItem === 'topnews' && showBaseInfo && ticker.length > 0" [news_info]="news_info"></app-topnews>
+  <app-charts *ngIf="activeMenuItem === 'charts' && showBaseInfo" [graph_info]="graph_info" [queryTicker]="ticker"></app-charts>
+  <app-insights *ngIf="activeMenuItem === 'insights' && showBaseInfo" [trend_info]="trend_info" [sentiment_info]="sentiment_info" [earning_info]="earning_info" [queryTicker]="ticker" [company_info]="company_info"></app-insights>
+</div>
+
+.input-group {
+    padding: 0px 20px;
+    border: 4px solid darkblue;
+    border-radius: 30px;
+    height: fit-content;
+  }
+  
+  .form-control-custom {
+    border: none;
+    border-radius: 30px;
+    padding: 7px;
+    transition: none;
+    flex: 1 1 auto;
+  }
+  
+  .form-control-custom:focus {outline:none;}
+  
+  .searchbox-btn-custom {
+    color: darkblue;
+    padding: 0;
+  }
+  
+  #cross-button {
+      padding-left: 10px;
+  }
+  
+  .suggestions-dropdown {
+    position: relative;
+    z-index: 1000;
+    max-height: 230px;
+    overflow-y: auto;
+    background-color: #fff;
+    box-shadow: 0px 3px 9px rgba(0, 0, 0, 0.5);
+    border-radius: 4px;
+    padding: 5px 0;
+  }
+  
+  .suggestions-dropdown div {
+    padding: 10px;
+    cursor: pointer;
+    margin-right: 10px;
+  }
+  
+  .suggestions-dropdown div:hover {
+    background-color: #f0f0f0;
+  }
+  
+  p {
+    margin: 0;
+  }
+  
+   .btn-custom {
+    margin-top: 5px;
+    margin-right: 5px;
+  }
+  
+  .menu-item {
+    display: block;
+    padding: 10px 15px;
+    color: grey;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  
+  .menu-item:hover{
+    background-color: lightgrey;
+  }
+  
+  .menu-item.active {
+    color: darkblue;
+    border-bottom: 3px solid darkblue;
+  }
+  
+  .menu-item-custom {
+    padding: 1rem 5rem;
+    margin: auto;
+  }
+  
+  import { PItem } from './../../models/portfolio.model';
+  import { Component } from '@angular/core';
+  import { AutocompleteService } from '../../services/autocomplete.service';
+  import { CommonModule } from '@angular/common';
+  import { forkJoin } from 'rxjs';
+  import { FormsModule } from '@angular/forms';
+  import { NgbModal } from '@ng-bootstrap/ng-bootstrap';
+  import { BuymodalComponent } from '../buymodal/buymodal.component';
+  import { SellmodalComponent } from '../sellmodal/sellmodal.component';
+  import { Router } from '@angular/router';
+  
+  @Component({
+    selector: 'app-portfolio',
+    standalone: true,
+    imports: [
+      CommonModule,
+      FormsModule,
+    ],
+    templateUrl: './portfolio.component.html',
+    styleUrl: './portfolio.component.css'
+  })
+  export class PortfolioComponent {
+  
+    portfolio_info: any[] = [];
+    company_info: any[] = [];
+    stock_info: any[] = [];
+    print_info: PItem[] = [];
+    wallet_info: any[] = [];
+    hasItems: boolean = false;
+    moneyInWallet: string = '25000.00';
+    inputValue: number = 0;
+    ticker: string = '';
+    showAddAlert: boolean = false;
+    showRemoveAlert: boolean = false;
+    currentPurchase: string = '';
+    isContentLoading = true;
+  
+    constructor(
+      private autocompleteService: AutocompleteService,
+      private modalService: NgbModal,
+      private router: Router
+    ) {}
+  
+    ngOnInit() {
+      this.displayPortfolio();
+    }
+  
+    displayPortfolio () {
+      this.isContentLoading = true;
+      this.print_info = [];
+      this.autocompleteService.getPortfolio().subscribe(data => {
+        this.portfolio_info = data;
+        this.autocompleteService.getWallet().subscribe(data => {
+          this.wallet_info = data;
+          if (this.portfolio_info.length === 0) {
+            this.hasItems = false;
+          }
+  
+          for (let i = 0; i < this.portfolio_info.length; i++) {
+            this.hasItems = true;
+            let caretstyle: string = '';
+            let color: {'color': string};
+  
+            forkJoin([
+              this.autocompleteService.fetchCompanyData(this.portfolio_info[i].ticker),
+              this.autocompleteService.fetchStockData(this.portfolio_info[i].ticker),
+              ]).subscribe(([data1, data2]) => {
+              this.company_info = data1;
+              this.stock_info = data2;
+              let tempChange = parseFloat((this.stock_info[0].c).toFixed(2));
+              let tempTotalChange = parseFloat((Number(this.portfolio_info[i].totalcost)).toFixed(2));
+              let tempStocks = parseFloat(Number(this.portfolio_info[i].stocks).toFixed(2));
+              let tempDivide = tempTotalChange / tempStocks;
+              let calcChange = tempChange - parseFloat((tempDivide).toFixed(2));
+              if (calcChange < 0) {
+                caretstyle = "fa-solid fa-caret-down";
+                color = {'color': 'red'};
+              }
+              else if (calcChange > 0) {
+                caretstyle = "fa-solid fa-caret-up";
+                color = {'color': 'green'};
+              }
+              else {
+                caretstyle = "";
+                color = {'color': 'black'};
+              }
+              const tempPrintInfo: PItem = {
+                ticker: this.portfolio_info[i].ticker,
+                name: this.company_info[0].name,
+                quantity: this.portfolio_info[i].stocks + ".00",
+                avgcost: Number(this.portfolio_info[i].totalcost) / Number(this.portfolio_info[i].stocks),
+                totalcost: this.portfolio_info[i].totalcost,
+                change: this.stock_info[0].c.toFixed(2) - (Number(this.portfolio_info[i].totalcost) / Number(this.portfolio_info[i].stocks)),
+                currentprice: this.stock_info[0].c,
+                marketvalue: Number(this.portfolio_info[i].stocks) * this.stock_info[0].c,
+                caretstyle: caretstyle,
+                color: color
+              };
+              this.print_info.push(tempPrintInfo);
+            });
+          }
+          this.isContentLoading = false;
+        });
+      });
+    }
+  
+    buyModalDeets (ticker: string, currentprice: number) {
+      currentprice = parseFloat(currentprice.toFixed(2));
+      this.autocompleteService.getWallet().subscribe(data => {
+        this.wallet_info = data;
+        for (let i = 0; i < this.wallet_info.length; i++) {
+          this.moneyInWallet = this.wallet_info[i].total;
+        }
+        const modalBuy = this.modalService.open(BuymodalComponent);
+        modalBuy.componentInstance.portfolio_info = this.portfolio_info;
+        modalBuy.componentInstance.ticker = ticker;
+        modalBuy.componentInstance.moneyInWallet = this.moneyInWallet;
+        modalBuy.componentInstance.currentPrice = currentprice;
+        modalBuy.result.then(
+          (result) => {
+            this.currentPurchase = ticker;
+            this.showAddAlert = true;
+            setTimeout(() => {
+              this.showAddAlert = false;
+            }, 3000);
+            this.displayPortfolio();
+          }
+        );
+      });
+    }
+  
+    sellModalDeets (ticker: string, currentprice: number) {
+      currentprice = parseFloat(currentprice.toFixed(2));
+      this.autocompleteService.getWallet().subscribe(data => {
+        this.wallet_info = data;
+        for (let i = 0; i < this.wallet_info.length; i++) {
+          this.moneyInWallet = this.wallet_info[i].total;
+        }
+        const modalSell = this.modalService.open(SellmodalComponent);
+        modalSell.componentInstance.portfolio_info = this.portfolio_info;
+        modalSell.componentInstance.ticker = ticker;
+        modalSell.componentInstance.moneyInWallet = this.moneyInWallet;
+        modalSell.componentInstance.currentPrice = currentprice;
+        modalSell.result.then(
+          (result) => {
+            this.currentPurchase = ticker;
+            this.showRemoveAlert = true;
+            setTimeout(() => {
+              this.showRemoveAlert = false;
+            }, 3000);
+            this.displayPortfolio();
+          }
+        );
+      });
+    }
+  
+    onClick (ticker: string) {
+      this.router.navigate(['/search', ticker]);
+    }
+  
+  }
+
+  <div class="container mt-5">
+    <div class="row">
+        <div class="col">
+            <div class="row">
+                <!-- added to portfolio alert -->
+                <div *ngIf="showAddAlert" class="alert alert-success alert-dismissible fade show" role="alert">
+                    {{this.currentPurchase}} bought successfully.
+                    <button type="button" class="btn-close" aria-label="Close" (click)="showAddAlert = false"></button>
+                </div>
+                <!-- removed from portfolio alert -->
+                <div *ngIf="showRemoveAlert" class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {{this.currentPurchase}} sold successfully.
+                    <button type="button" class="btn-close" aria-label="Close" (click)="showRemoveAlert = false"></button>
+                </div>
+                <h1 class="fs-1">My Portfolio</h1>
+                <!-- loading spinner -->
+                <div *ngIf="isContentLoading" class="loading-spinner  d-flex justify-content-center">
+                    <div class="spinner-border m-5" style="width: 3rem; height: 3rem; color: darkblue" role="status">
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div *ngIf="!isContentLoading">
+        <h4> Money in Wallet: ${{this.wallet_info[0].total}}</h4>
+        <!-- empty watchlist alert -->
+        <div *ngIf="!this.hasItems && !isContentLoading" class="alert alert-warning text-center" role="alert">
+            Currently you don't have any stock.
+        </div>
+        <!-- portfolio cards -->
+        <div *ngFor="let info of print_info">
+            <div class="card text-left my-3">
+                <div class="fs-3 card-header" (click)="onClick(info.ticker)" style="cursor: pointer;">
+                    {{info.ticker}}
+                    <span class="fs-5 text-muted">
+                        {{info.name}}
+                    </span>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md">
+                            <div class="row">
+                                <div class="col-8">
+                                    <h5 class="card-title">Quantity:</h5>
+                                    <h5 class="card-title">Avg. Cost / Share:</h5>
+                                    <h5 class="card-title">Total Cost:</h5>
+                                </div>
+                                <div class="col-4">
+                                    <h5 class="card-title">{{info.quantity}}</h5>
+                                    <h5 class="card-title">{{info.avgcost | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.totalcost}}</h5>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md">
+                            <div class="row">
+                                <div class="col-8">
+                                    <h5 class="card-title">Change:</h5>
+                                    <h5 class="card-title">Current Price:</h5>
+                                    <h5 class="card-title">Market Value:</h5>
+                                </div>
+                                <div class="col-4" [ngStyle]="info.color">
+                                    <h5 class="card-title"><i [ngClass]="info.caretstyle"></i> {{info.change | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.currentprice | number:'1.2-2'}}</h5>
+                                    <h5 class="card-title">{{info.marketvalue | number:'1.2-2'}}</h5>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <!-- buy -->
+                    <button type="button" class="btn btn-primary m-1" (click)="buyModalDeets(info.ticker, info.currentprice)">Buy</button>
+                    <!-- sell -->
+                    <button type="button" class="btn btn-danger m-1" (click)="sellModalDeets(info.ticker, info.currentprice)">Sell</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+import { Component, Input } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+
+@Component({
+  selector: 'app-newsmodal',
+  standalone: true,
+  imports: [],
+  templateUrl: './newsmodal.component.html',
+  styleUrl: './newsmodal.component.css'
+})
+export class NewsmodalComponent {
+  @Input() info: any;
+  dateFormatted: string = '';
+
+  constructor(public modal: NgbActiveModal) {}
+
+  ngOnInit() {
+    if (this.info && this.info.datetime) {
+      this.epochToDate(this.info.datetime);
+    }
+  }
+
+  epochToDate(unixTimestamp: number) {
+    const date = new Date(unixTimestamp * 1000);
+    const options: Intl.DateTimeFormatOptions = {
+        year: 'numeric',
+        month: 'long',
+        day: '2-digit'
+    };
+    this.dateFormatted = date.toLocaleDateString('en-US', options);
+  }
+
+  getUrlX() {
+    const text = encodeURIComponent(this.info.headline + ' ' + this.info.url);
+    return `https://twitter.com/intent/tweet?text=${text}`;
+  }
+
+  getUrlFb(): string {
+    const urlToShare = encodeURIComponent(this.info.url);
+    return `https://www.facebook.com/sharer/sharer.php?u=${urlToShare}`;
+}
+
+}
+
+<div class="modal-header">
+    <h4 class="modal-title">{{info.source}}<br><p class="text-muted m-0" style="font-size: 0.9rem;">{{dateFormatted}}</p></h4>
+    <button type="button" class="btn-close" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body">
+    <h5>{{info.headline}}</h5>
+    <p class="truncate-2-lines">{{info.summary}}</p>
+    <p>For more details click <a [href]=info.url target="_blank">here</a></p>
+    <div class="border rounded p-2" style="color: lightgrey;">
+        <p style="color: black;">Share</p>
+        <a class="twitter-share-button m-1" [href]="getUrlX()" target="_blank">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg" alt="Twitter Logo" style="width: 35px; height: auto;">
+        </a>
+        <a class="fb-share-button m-1" [href]="getUrlFb()" target="_blank">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/1/1b/Facebook_icon.svg" alt="Facebook Logo" style="width: 35px; height: auto;">
+        </a> 
+    </div>
+</div>
+
+.truncate-2-lines {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;  
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  import { CommonModule } from '@angular/common';
+import { Component, Input } from '@angular/core';
+import { HighchartsChartModule } from 'highcharts-angular';
+import * as Highcharts from 'highcharts/highstock';
+
+@Component({
+  selector: 'app-insights',
+  standalone: true,
+  imports: [
+    HighchartsChartModule,
+    CommonModule
+  ],
+  templateUrl: './insights.component.html',
+  styleUrl: './insights.component.css'
+})
+export class InsightsComponent {
+  @Input() trend_info: any;
+  @Input() sentiment_info: any;
+  @Input() earning_info: any;
+  @Input() queryTicker: string = '';
+  @Input() company_info: any = '';
+
+  Highcharts: typeof Highcharts = Highcharts;
+  chartOptions!: Highcharts.Options;
+  chartConstructor: string = 'chart';
+  updateFlag: boolean = false;
+  oneToOneFlag: boolean = true;
+  runOutsideAngular: boolean = false;
+
+  Highcharts2: typeof Highcharts = Highcharts;
+  chartOptions2!: Highcharts.Options;
+  chartConstructor2: string = 'chart';
+  updateFlag2: boolean = false;
+  oneToOneFlag2: boolean = true;
+  runOutsideAngular2: boolean = false;
+
+  totalMspr: number = 0;
+  positiveMspr: number = 0;
+  negativeMspr: number = 0;
+  totalChange: number = 0;
+  positiveChange: number = 0;
+  negativeChange: number = 0;
+
+  ngOnInit() {
+    this.initializeTrendChart();
+    this.initializeSurpriseChart();
+    this.calculateSentiment();
+  }
+
+  calculateSentiment() {
+
+    this.totalMspr = 0;
+    this.totalChange = 0;
+    this.positiveMspr = 0;
+    this.negativeMspr = 0;
+    this.positiveChange = 0;
+    this.negativeChange = 0;
+
+    if (this.sentiment_info.length > 0 && this.sentiment_info[0].data) {
+      for (let i = 0; i < this.sentiment_info[0].data.length; i++) {
+        const item = this.sentiment_info[0].data[i];
+
+        this.totalMspr += item.mspr;
+        this.totalChange += item.change;
+
+        if (item.mspr < 0) {
+          this.negativeMspr += item.mspr;
+          this.negativeChange += item.change;
+        } else {
+          this.positiveMspr += item.mspr;
+          this.positiveChange += item.change;
+        }
+      }
+    }
+
+    this.totalMspr = Number(this.totalMspr.toFixed(2));
+    this.positiveMspr = Number(this.positiveMspr.toFixed(2));
+    this.negativeMspr = Number(this.negativeMspr.toFixed(2));
+  }
+
+  initializeTrendChart(): void {
+    let dates: Array<string> = [];
+    let strongbuy: Array<string> = [];
+    let buy: Array<string> = [];
+    let hold: Array<string> = [];
+    let sell: Array<string> = [];
+    let strongsell: Array<string> = [];
+
+    for (let i = 0; i < this.trend_info.length; i++ ) {
+      dates.push(this.trend_info[i].period.slice(0,7));
+      strongbuy.push(this.trend_info[i].strongBuy);
+      buy.push(this.trend_info[i].buy);
+      hold.push(this.trend_info[i].hold);
+      sell.push(this.trend_info[i].sell);
+      strongsell.push(this.trend_info[i].strongSell);
+    }
+
+    this.chartOptions = {
+      chart: {
+          type: 'column',
+          backgroundColor: '#f0f0f0',
+      },
+
+      title: {
+          text: 'Recommendation Trends',
+          align: 'center'
+      },
+
+      xAxis: {
+          categories: dates
+      },
+
+      yAxis: {
+          min: 0,
+          title: {
+              text: '#Analysis'
+          }
+      },
+
+      legend: {
+          verticalAlign: 'bottom',
+          backgroundColor: '#f0f0f0',
+      },
+
+      tooltip: {
+          headerFormat: '<b>{point.x}</b><br/>',
+          pointFormat: '{series.name}: {point.y}<br/>Total: {point.stackTotal}'
+      },
+
+      plotOptions: {
+          column: {
+              stacking: 'normal',
+              dataLabels: {
+                  enabled: true
+              }
+          }
+      },
+
+      series: [
+        {
+          type: 'column',
+          name: 'Strong Buy',
+          data: strongbuy,
+          color: "green",
+        }, 
+        {
+          type: 'column',
+          name: 'Buy',
+          data: buy,
+          color: "#4aba67",
+        }, 
+        {
+          type: 'column',
+          name: 'Hold',
+          data: hold,
+          color: "#c7a748",
+        }, 
+        {
+          type: 'column',
+          name: 'Sell',
+          data: sell,
+          color: "#a56c1b",
+        }, 
+        {
+          type: 'column',
+          name: 'Strong Sell',
+          data: strongsell,
+          color: "#a5321b",
+        }
+      ]
+    };
+  }
+
+  initializeSurpriseChart(): void {
+    let dates: Array<string> = [];
+    let surprise: Array<string> = [];
+    let actual: Array<string> = [];
+    let estimate: Array<string> = [];
+
+    for (let i = 0; i < this.trend_info.length; i++ ) {
+      dates.push(this.earning_info[i].period);
+      surprise.push(this.earning_info[i].surprise);
+      actual.push(this.earning_info[i].actual);
+      estimate.push(this.earning_info[i].estimate);
+    }
+
+    let xAxisVal = dates.map((date, index) => `${date} <br> Surprise: ${surprise[index]}`);
+
+    this.chartOptions2 = {
+      chart: {
+          type: 'spline',
+          backgroundColor: '#f0f0f0',
+      },
+
+      title: {
+          text: 'Historical EPS Surprises',
+          align: 'center'
+      },
+
+      xAxis: {
+        categories: xAxisVal,
+        accessibility: {
+            rangeDescription: 'Range: last 4 months'
+        },
+        maxPadding: 0.05,
+      },
+
+      yAxis: {
+          title: {
+              text: 'Quaterly EPS'
+          },
+          labels: {
+              format: '{value}'
+          },
+          accessibility: {
+              rangeDescription: 'Range: 0 to 1'
+          },
+      },
+
+      legend: {
+          enabled: true
+      },
+
+      tooltip: {
+          headerFormat: '<b>{series.name}</b><br/>',
+          pointFormat: 'Earnings: {point.y}'
+      },
+
+      plotOptions: {
+          spline: {
+              marker: {
+                  enabled: true
+              }
+          }
+      },
+
+      series: [{
+        type: "spline",
+        name: 'Actual',
+        data: actual
+      },{
+        type: "spline",
+        name: 'Estimate',
+        data: estimate
+      }]
+    };
+  }
+
+}
+
+<div class="container">
+  <div class="row d-flex justify-content-center">
+    <div class="col-md col-lg-6">
+      <p class="fs-4 text-center my-1">Insider Sentiments</p>
+      <table class="table text-center">
+        <thead>
+          <tr>
+            <th scope="col">{{this.company_info[0].name}}</th>
+            <th scope="col">MSPR</th>
+            <th scope="col">Change</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Total</th>
+            <td>{{totalMspr}}</td>
+            <td>{{totalChange}}</td>
+          </tr>
+          <tr>
+            <th scope="row">Positive</th>
+            <td>{{positiveMspr}}</td>
+            <td>{{positiveChange}}</td>
+          </tr>
+          <tr>
+            <th scope="row">Negative</th>
+            <td>{{negativeMspr}}</td>
+            <td>{{negativeChange}}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-lg-6 col-md">
+      <highcharts-chart
+        [Highcharts]="Highcharts"
+
+        [constructorType]="chartConstructor"
+        [options]="chartOptions"
+
+        [(update)]="updateFlag"
+        [oneToOne]="oneToOneFlag"
+        [runOutsideAngular]="runOutsideAngular"
+
+        style="height: 300px; display: block;">
+      </highcharts-chart>
+    </div>
+    <div class="col-lg-6 col-md">
+      <highcharts-chart
+        [Highcharts]="Highcharts2"
+
+        [constructorType]="chartConstructor2"
+        [options]="chartOptions2"
+
+        [(update)]="updateFlag2"
+        [oneToOne]="oneToOneFlag2"
+        [runOutsideAngular]="runOutsideAngular2"
+
+        style="height: 300px; display: block;">
+      </highcharts-chart>
+    </div>
+  </div>
+</div>
+
+import { Component, Input } from '@angular/core';
+import { HighchartsChartModule } from 'highcharts-angular';
+import * as Highcharts from 'highcharts/highstock';
+import HC_stock from 'highcharts/modules/stock';
+import HC_map from 'highcharts/modules/map';
+import HC_gantt from 'highcharts/modules/gantt';
+import VBP from 'highcharts/indicators/volume-by-price';
+import IndicatorsCore from 'highcharts/indicators/indicators';
+IndicatorsCore(Highcharts);
+VBP(Highcharts);
+HC_gantt(Highcharts);
+HC_map(Highcharts);
+HC_stock(Highcharts);
+
+@Component({
+  selector: 'app-charts',
+  standalone: true,
+  imports: [HighchartsChartModule],
+  templateUrl: './charts.component.html',
+  styleUrl: './charts.component.css'
+})
+export class ChartsComponent {
+  
+  @Input() graph_info: any;
+  @Input() queryTicker: string = '';
+
+  chartOptions!: Highcharts.Options;
+  Highcharts: typeof Highcharts = Highcharts;
+  chartConstructor: string = 'chart';
+  updateFlag: boolean = false;
+  oneToOneFlag: boolean = true;
+  runOutsideAngular: boolean = false;
+
+  ngOnInit() {
+    this.initializeChart();
+  }
+  
+  initializeChart(): void {
+    const ohlc = [],
+        volume = []
+    const groupingUnits: [string, (number[] | null)][] = [
+      ['week', [1]],
+      ['month', [1, 2, 3, 4, 6]]
+    ];
+    for (let i=0; i < this.graph_info[0].resultsCount; i++) {
+      ohlc.push([Number(this.graph_info[0].results[i].t), this.graph_info[0].results[i].o, this.graph_info[0].results[i].h, this.graph_info[0].results[i].l, this.graph_info[0].results[i].c])
+    }
+    for (let i=0; i < this.graph_info[0].resultsCount; i++) {
+      volume.push([Number(this.graph_info[0].results[i].t), this.graph_info[0].results[i].v])
+    }
+    this.chartOptions = {
+      rangeSelector: {
+        buttons: [{
+          type: 'month',
+          count: 1,
+          text: '1m',
+          title: 'View 1 month'
+      }, {
+          type: 'month',
+          count: 3,
+          text: '3m',
+          title: 'View 3 months'
+      }, {
+          type: 'month',
+          count: 6,
+          text: '6m',
+          title: 'View 6 months'
+      }, {
+          type: 'ytd',
+          text: 'YTD',
+          title: 'View year to date'
+      }, {
+          type: 'year',
+          count: 1,
+          text: '1y',
+          title: 'View 1 year'
+      }, {
+          type: 'all',
+          text: 'All',
+          title: 'View all'
+      }],
+      selected: 0,
+      enabled: true
+      },
+
+      title: {
+        text: `${this.queryTicker} Historical`,
+      },
+
+      subtitle: {
+        text: 'With SMA and Volume by Price technical indicators'
+      },
+
+      xAxis: {
+        type: 'datetime',
+      },
+
+      yAxis: [{
+        startOnTick: false,
+        endOnTick: false,
+        opposite: true,
+        labels: {
+            align: 'right',
+            x: -3
+        },
+        title: {
+            text: 'OHLC'
+        },
+        height: '60%',
+        lineWidth: 2,
+        resize: {
+            enabled: true
+        }
+      }, {
+        opposite: true,
+        labels: {
+            align: 'right',
+            x: -3
+        },
+        title: {
+            text: 'Volume'
+        },
+        top: '65%',
+        height: '35%',
+        offset: 0,
+        lineWidth: 2
+      }],
+
+      tooltip: {
+        split: true
+      },
+
+      plotOptions: {
+        series: {
+          dataGrouping: {
+            units: groupingUnits
+            }
+        }
+      },
+
+      series: [
+        {
+        type: 'candlestick',
+        name: `${this.queryTicker}`,
+        id: `${this.queryTicker}`,
+        data: ohlc,
+      }, 
+      {
+        type: 'column',
+        name: 'Volume',
+        id: 'volume',
+        data: volume,
+        yAxis: 1
+      }, 
+      {
+        type: 'vbp',
+        linkedTo: `${this.queryTicker}`,
+        params: {
+            volumeSeriesID: 'volume'
+        },
+        dataLabels: {
+            enabled: false
+        },
+        zoneLines: {
+            enabled: false
+        }
+      }, 
+      {
+        type: 'sma',
+        linkedTo: `${this.queryTicker}`,
+        zIndex: 1,
+        marker: {
+            enabled: false
+        }
+      }
+    ],
+    navigator: {
+      enabled: true
+    },
+    legend: {
+      enabled: false
+    }
+    };
+  }
+}
+
+<highcharts-chart
+  [Highcharts]="Highcharts"
+
+  [constructorType]="chartConstructor"
+  [options]="chartOptions"
+
+  [(update)]="updateFlag"
+  [oneToOne]="oneToOneFlag"
+  [runOutsideAngular]="runOutsideAngular"
+
+  style="width: 100%; height: 600px; display: block;"
+></highcharts-chart>
+
+import { Component, Input } from '@angular/core';
+import { NgbActiveModal } from '@ng-bootstrap/ng-bootstrap';
+import { AutocompleteService } from '../../services/autocomplete.service';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+
+@Component({
+  selector: 'app-buymodal',
+  standalone: true,
+  imports: [
+    CommonModule,
+    FormsModule
+  ],
+  templateUrl: './buymodal.component.html',
+  styleUrl: './buymodal.component.css'
+})
+
+export class BuymodalComponent {
+  @Input() portfolio_info: any;
+  @Input() ticker: any;
+  @Input() moneyInWallet: any;
+  @Input() currentPrice: any;
+  ogMoneyInWallet: string = '';
+  inputValue: number = 0;
+  wallet_info: any[] = [];
+  found: number = -1;
+
+  constructor(
+    public modal: NgbActiveModal,
+    private autocompleteService: AutocompleteService, 
+    ) {
+
+  }
+
+  ngOnInit() {
+    if (this.ticker && this.moneyInWallet && this.currentPrice) {
+      this.ogMoneyInWallet = this.moneyInWallet;
+      for (let i = 0; i < this.portfolio_info.length; i++) {
+        if (this.portfolio_info[i].ticker === this.ticker) {
+          this.found = i;
+        }
+      }
+    }
+  }
+
+  totalMoney () {
+    return this.currentPrice * this.inputValue;
+  }
+
+  enoughMoney () {
+    if (+this.ogMoneyInWallet < 1) {
+      return true;
+    }
+    return Number(this.ogMoneyInWallet) < this.totalMoney();
+  }
+
+  addToPortfolio (ticker: string) {
+    if (this.found === -1) {
+      let newQuantity = this.inputValue;
+      let newTotalCost = this.totalMoney();
+      newTotalCost = parseFloat(newTotalCost.toFixed(2));
+      this.autocompleteService.addToPortfolio(ticker, String(newQuantity), String(newTotalCost)).subscribe(data => {
+        this.portfolio_info = data;
+        this.found = -1;
+        this.sendBuyResult()
+      });
+    }
+    else {
+      let newQuantity = +this.portfolio_info[this.found].stocks + +this.inputValue;
+      let newTotalCost = +this.portfolio_info[this.found].totalcost + +this.totalMoney();
+      newTotalCost = parseFloat(newTotalCost.toFixed(2));
+      this.autocompleteService.updatePortfolio(ticker, String(newQuantity), String(newTotalCost)).subscribe(data => {
+        this.portfolio_info = data;
+        this.found = -1;
+        this.sendBuyResult()
+      });
+    }
+  }
+
+  sendBuyResult() {
+    let canSell = true;
+    let temp = Number(this.moneyInWallet) - Number(this.totalMoney());
+    temp = parseFloat(temp.toFixed(2));
+    this.moneyInWallet = String(temp);  
+    this.autocompleteService.setWallet(this.moneyInWallet).subscribe(data => {
+      this.wallet_info = data;
+      this.modal.close(canSell);
+    });
+  }
+
+}
+
+<div class="modal-header">
+    <h5 class="modal-title" id="exampleModalLabel">{{ticker}}</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" (click)="modal.dismiss('Cross click')"></button>
+</div>
+<div class="modal-body text-left">
+    <p>Current Price: {{currentPrice}}</p>
+    <p>Money in Wallet: ${{ogMoneyInWallet}}</p>
+    <div class="form-outline d-flex justify-content-between">
+        <label class="form-label" for="typeNumber">Quantity:</label>
+        <input type="number" id="typeNumber" class="form-control m-1" [(ngModel)]="inputValue" value="0" min="0"/>
+    </div>
+    <p class="text-danger" *ngIf="enoughMoney()">Not enough money in wallet!</p>
+</div>
+<div class="modal-footer d-flex justify-content-between">
+    <p>Total: {{ (this.currentPrice * this.inputValue) | number:'1.2-2' }}</p>
+    <button type="button" class="btn btn-success" data-bs-dismiss="modal" [disabled]="enoughMoney() || !this.inputValue" (click)="addToPortfolio(ticker)">Buy</button>
+</div>
+
+
+
+
+
+
+
+  
+
+
+
+
+

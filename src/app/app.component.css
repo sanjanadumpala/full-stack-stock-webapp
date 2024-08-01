@@ -1,0 +1,69 @@
+#title {
+    color: white;
+    margin: 0;
+    padding-left: 5%;
+}
+
+.bg-dark-blue {
+    background-color: darkblue !important;
+}
+
+/* .s-nav-link .p-nav-link .w-nav-link{
+    border: 2px solid white !important;
+    border-radius: 15px;
+} */
+
+.nav-link.active {
+    border: 2px solid white !important;
+    border-radius: 15px;
+}
+
+
+/* .nav-link.hover {
+    color: black;
+} */
+
+#myNav {
+    margin: 0rem 3rem;
+}
+
+.nav-link {
+    padding: 5px 20px !important;
+}
+
+.navbar-toggler {
+    margin-right: 2rem;
+}
+
+/* footer{
+    background-color: #e2e3e5;
+    position:fixed;
+    bottom: 0;
+    width:100%
+    }
+.dummy { clear: both; height: 60px; } */
+
+/* .nav, .app-searchbar, .app-watchlist, .app-portfolio {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+  
+footer {
+margin-top: auto;
+} */
+
+/* app-root {
+    justify-content: space-between;
+    
+} */
+
+#sanjana {
+    min-height: 92vh;
+    display: flex;
+    flex-direction: column;
+  }
+  
+footer {
+    margin-top: auto;
+  }
