@@ -21,8 +21,8 @@ const cors = require('cors');
 const { watch } = require('fs');
 app.use(express.json());
 
-const APItoken = process.env.API_KEY
-const highchartsAPI = process.env.HC_API
+const APItoken = process.env.FINNHUB_API
+const highchartsAPI = process.env.POLYGON_API
 
 app.use(cors());
 app.set('trust proxy', true);
@@ -267,7 +267,6 @@ app.get(`/getwatchlist`, async function (req, res) {
 app.get(`/checkwatchlist`, async function (req, res) {
 	try {
 		let stockTicker = req.query['ticker'];
-		console.log("hello")
 		await client.connect();
 		const data = await watchlist.find({ticker: stockTicker}).toArray();
 		//client.close();
